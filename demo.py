@@ -15,6 +15,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.datasets import make_classification
 import joblib
 
+from pathlib import Path
+
 BASE_URL = os.getenv("ATLASML_URL", "http://localhost:8000")
 
 
@@ -32,19 +34,27 @@ def main() -> None:
     # --- Prepare artifacts ---
     tmpdir = tempfile.mkdtemp(prefix="atlasml_demo_")
 
+    PROJECT_ROOT = Path(__file__).resolve().parent
+    ARTIFACTS_DIR = PROJECT_ROOT / "artifacts"
+    ARTIFACTS_DIR.mkdir(exist_ok=True)
+
     # Train model v1
     X, y = make_classification(n_samples=200, n_features=4, random_state=42)
     clf_v1 = LogisticRegression(C=1.0, random_state=42).fit(X, y)
-    v1_path = os.path.join(tmpdir, "model_v1.joblib")
-    joblib.dump(clf_v1, v1_path)
+    host_model_v1_path = ARTIFACTS_DIR / "model_v1.joblib"
+    joblib.dump(clf_v1, host_model_v1_path)
+
+    container_model_v1_path = f"/app/artifacts/{host_model_v1_path.name}"
 
     # Train model v2 (different hyperparams)
     clf_v2 = LogisticRegression(C=10.0, random_state=42).fit(X, y)
-    v2_path = os.path.join(tmpdir, "model_v2.joblib")
-    joblib.dump(clf_v2, v2_path)
+    host_model_v2_path = ARTIFACTS_DIR / "model_v2.joblib"
+    joblib.dump(clf_v2, host_model_v2_path)
+
+    container_model_v2_path = f"/app/artifacts/{host_model_v2_path.name}"
 
     # Create test dataset
-    dataset_path = os.path.join(tmpdir, "test_dataset.jsonl")
+    dataset_path = ARTIFACTS_DIR / "test_dataset.jsonl"
     X_test, y_test = make_classification(n_samples=100, n_features=4, random_state=99)
     with open(dataset_path, "w") as f:
         for i in range(len(X_test)):
@@ -54,11 +64,13 @@ def main() -> None:
             }
             f.write(json.dumps(row) + "\n")
 
+    container_dataset_path = f"/app/artifacts/{dataset_path.name}"
+
     # --- Step 1: Register model v1 ---
     step(1, "Register model v1")
     resp = client.post(
         "/models/register",
-        json={"name": "demo-classifier", "version": "v1", "artifact_uri": v1_path},
+        json={"name": "demo-classifier", "version": "v1", "artifact_uri": container_model_v1_path},
     )
     print(f"Status: {resp.status_code}")
     print(f"Response: {json.dumps(resp.json(), indent=2, default=str)}")
@@ -68,8 +80,10 @@ def main() -> None:
     resp = client.post(
         "/models/demo-classifier/activate", json={"version": "v1"}
     )
+    print("Status:", resp.status_code)
+    print("Headers:", resp.headers.get("content-type"))
+    print("Raw text:", repr(resp.text))
     print(f"Active version: {resp.json()['version']} (is_active={resp.json()['is_active']})")
-
     # --- Step 3: Sync predict ---
     step(3, "POST /predict with 5 test inputs")
     test_inputs = [
@@ -80,6 +94,7 @@ def main() -> None:
         json={"model_name": "demo-classifier", "inputs": test_inputs},
     )
     data = resp.json()
+    print(data)
     print(f"Predictions: {[p['prediction'] for p in data['predictions']]}")
     print(f"Model version: {data['model_version']}")
     print(f"Latency: {data['latency_ms']:.2f} ms")
@@ -92,7 +107,7 @@ def main() -> None:
             "model_name": "demo-classifier",
             "version": "v1",
             "dataset_id": "demo-test",
-            "dataset_path": dataset_path,
+            "dataset_path": container_dataset_path,
         },
     )
     run_id_v1 = resp.json()["run_id"]
@@ -121,7 +136,7 @@ def main() -> None:
     step(6, "Register model v2")
     resp = client.post(
         "/models/register",
-        json={"name": "demo-classifier", "version": "v2", "artifact_uri": v2_path},
+        json={"name": "demo-classifier", "version": "v2", "artifact_uri": container_model_v2_path},
     )
     print(f"Registered v2: {resp.json()['version']}")
 
@@ -133,7 +148,7 @@ def main() -> None:
             "model_name": "demo-classifier",
             "version": "v2",
             "dataset_id": "demo-test",
-            "dataset_path": dataset_path,
+            "dataset_path": container_dataset_path,
         },
     )
     run_id_v2 = resp.json()["run_id"]

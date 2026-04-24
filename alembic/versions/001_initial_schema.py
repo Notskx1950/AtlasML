@@ -30,6 +30,8 @@ def upgrade() -> None:
         sa.Column("metadata_", JSONB, nullable=True),
         sa.Column("is_active", sa.Boolean, nullable=False, server_default="false"),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("name", "version", name="uq_model_name_version"),
     )
 
     op.create_table(
