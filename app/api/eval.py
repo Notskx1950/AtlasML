@@ -106,8 +106,9 @@ async def start_eval_run(
         )
 
     run_id = uuid.uuid4()
+    # Generate dataset hash for easier comparison of runs using the same dataset
     dataset_hash = hashlib.sha256(body.dataset_path.encode()).hexdigest()[:16]
-
+    
     run = EvalRun(
         id=run_id,
         model_name=body.model_name,
