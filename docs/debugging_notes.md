@@ -658,5 +658,3 @@ This debugging process clarified the separation between:
 * client-side request/response handling
 
 These fixes made the demo more reliable, repeatable, and closer to a real ML infrastructure workflow.
-
-````
