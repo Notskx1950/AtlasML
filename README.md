@@ -43,3 +43,58 @@ pytest tests/ -v
 | `POST /eval/run` | Start an eval run |
 | `GET /eval/runs/{run_id}` | Get eval results |
 | `GET /eval/compare` | Compare two versions |
+
+## Diagram
+                         ┌──────────────────────┐
+                         │      demo.py          │
+                         │  local test client    │
+                         └──────────┬───────────┘
+                                    │ HTTP
+                                    │ localhost:8000
+                                    ▼
+┌──────────────────────────────────────────────────────────┐
+│                    FastAPI API Server                    │
+│                      api container                       │
+│                                                          │
+│  ┌────────────────┐   ┌────────────────┐                │
+│  │ registry API   │   │ inference API  │                │
+│  │ register/      │   │ predict        │                │
+│  │ activate       │   │                │                │
+│  └────────────────┘   └───────┬────────┘                │
+│                               │                         │
+│                               ▼                         │
+│                    ┌────────────────────┐                │
+│                    │ RegistryStore      │                │
+│                    │ adapter cache      │                │
+│                    └─────────┬──────────┘                │
+│                              │                           │
+│                              ▼                           │
+│                    ┌────────────────────┐                │
+│                    │ ModelAdapter       │                │
+│                    │ Sklearn / LLM      │                │
+│                    └────────────────────┘                │
+│                                                          │
+│  ┌────────────────┐                                      │
+│  │ eval API       │── enqueue job ───────┐               │
+│  └────────────────┘                      │               │
+└───────────────┬──────────────────────────┼───────────────┘
+                │                          │
+                │ SQLAlchemy               │ Redis/RQ
+                ▼                          ▼
+┌────────────────────────┐       ┌────────────────────────┐
+│       Postgres         │       │         Redis          │
+│                        │       │      job queue         │
+│ - ModelVersion         │       └───────────┬────────────┘
+│ - InferenceLog         │                   │
+│ - EvalRun              │                   ▼
+│ - EvalMetric           │       ┌────────────────────────┐
+│ - JobRecord            │       │        Worker          │
+└────────────────────────┘       │  run_eval / run_predict│
+                                 └───────────┬────────────┘
+                                             │
+                                             ▼
+                                ┌─────────────────────────┐
+                                │ /app/artifacts          │
+                                │ shared Docker volume    │
+                                │ model files + datasets  │
+                                └─────────────────────────┘

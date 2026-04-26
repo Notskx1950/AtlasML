@@ -50,16 +50,13 @@ def create_app() -> FastAPI:
     from app.api.registry import router as registry_router
     from app.api.inference import router as inference_router
     from app.api.eval import router as eval_router
+    from app.api.health import router as health_router
 
     app.include_router(registry_router, tags=["registry"])
     app.include_router(inference_router, tags=["inference"])
     app.include_router(eval_router, tags=["eval"])
-
-    @app.get("/health")
-    async def health() -> dict[str, str]:
-        """Health check endpoint."""
-        return {"status": "ok"}
-
+    app.include_router(health_router, tags=["health"])
+    
     return app
 
 

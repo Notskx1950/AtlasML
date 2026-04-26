@@ -1,3 +1,4 @@
 .env
+.pytest_cache/
 artifacts/
 __pycache__/
