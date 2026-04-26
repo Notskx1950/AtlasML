@@ -47,8 +47,8 @@ pytest tests/ -v
 ## Diagram
 ``` text
                          ┌──────────────────────┐
-                         │      demo.py          │
-                         │  local test client    │
+                         │      demo.py         │
+                         │  local test client   │
                          └──────────┬───────────┘
                                     │ HTTP
                                     │ localhost:8000
@@ -57,13 +57,13 @@ pytest tests/ -v
 │                    FastAPI API Server                    │
 │                      api container                       │
 │                                                          │
-│  ┌────────────────┐   ┌────────────────┐                │
-│  │ registry API   │   │ inference API  │                │
-│  │ register/      │   │ predict        │                │
-│  │ activate       │   │                │                │
-│  └────────────────┘   └───────┬────────┘                │
-│                               │                         │
-│                               ▼                         │
+│  ┌────────────────┐   ┌────────────────┐                 │
+│  │ registry API   │   │ inference API  │                 │
+│  │ register/      │   │ predict        │                 │
+│  │ activate       │   │                │                 │
+│  └────────────────┘   └───────┬────────┘                 │
+│                               │                          │
+│                               ▼                          │
 │                    ┌────────────────────┐                │
 │                    │ RegistryStore      │                │
 │                    │ adapter cache      │                │
