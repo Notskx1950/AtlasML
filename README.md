@@ -45,6 +45,7 @@ pytest tests/ -v
 | `GET /eval/compare` | Compare two versions |
 
 ## Diagram
+``` text
                          ┌──────────────────────┐
                          │      demo.py          │
                          │  local test client    │
@@ -98,3 +99,4 @@ pytest tests/ -v
                                 │ shared Docker volume    │
                                 │ model files + datasets  │
                                 └─────────────────────────┘
+                                ```
