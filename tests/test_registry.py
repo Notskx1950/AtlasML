@@ -2,19 +2,29 @@
 
 from __future__ import annotations
 
+import hashlib
+
 import pytest
 from httpx import AsyncClient
 
+# --- helper functions for tests ---
+def create_fake_artifact(tmp_path, filename: str, content: bytes | None = None) -> str:
+    path = tmp_path / filename
+    path.write_bytes(content or b"fake model artifact")
+    return str(path)
 
+
+# --- tests ---
 @pytest.mark.asyncio
-async def test_register_model(client: AsyncClient) -> None:
+async def test_register_model(client: AsyncClient, tmp_path) -> None:
     """Register a model version and verify the response."""
+    artifact_uri = create_fake_artifact(tmp_path, "test.joblib")
     resp = await client.post(
         "/models/register",
         json={
             "name": "test-model",
             "version": "v1.0",
-            "artifact_uri": "/models/test.joblib",
+            "artifact_uri": artifact_uri,
         },
     )
     assert resp.status_code == 201
@@ -27,16 +37,18 @@ async def test_register_model(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_activate_model(client: AsyncClient) -> None:
+async def test_activate_model(client: AsyncClient, tmp_path) -> None:
     """Activate a version and verify only it is active."""
     # Register two versions
+    artifact_uri = create_fake_artifact(tmp_path, "v1.joblib")
     await client.post(
         "/models/register",
-        json={"name": "act-model", "version": "v1", "artifact_uri": "/m/v1.joblib"},
+        json={"name": "act-model", "version": "v1", "artifact_uri": artifact_uri},
     )
+    artifact_uri = create_fake_artifact(tmp_path, "v2.joblib")
     await client.post(
         "/models/register",
-        json={"name": "act-model", "version": "v2", "artifact_uri": "/m/v2.joblib"},
+        json={"name": "act-model", "version": "v2", "artifact_uri": artifact_uri},
     )
 
     # Activate v1
@@ -54,12 +66,13 @@ async def test_activate_model(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_rollback_activation(client: AsyncClient) -> None:
+async def test_rollback_activation(client: AsyncClient, tmp_path) -> None:
     """Activate v1, then v2, then rollback to v1."""
     for v in ["v1", "v2"]:
+        artifact_uri = create_fake_artifact(tmp_path, f"{v}.joblib")
         await client.post(
             "/models/register",
-            json={"name": "rb-model", "version": v, "artifact_uri": f"/m/{v}.joblib"},
+            json={"name": "rb-model", "version": v, "artifact_uri": artifact_uri},
         )
 
     await client.post("/models/rb-model/activate", json={"version": "v1"})
@@ -76,12 +89,13 @@ async def test_rollback_activation(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_versions(client: AsyncClient) -> None:
+async def test_list_versions(client: AsyncClient, tmp_path) -> None:
     """List versions returns active first."""
     for v in ["v1", "v2", "v3"]:
+        artifact_uri = create_fake_artifact(tmp_path, f"{v}.joblib")
         await client.post(
             "/models/register",
-            json={"name": "list-model", "version": v, "artifact_uri": f"/m/{v}.joblib"},
+            json={"name": "list-model", "version": v, "artifact_uri": artifact_uri},
         )
     await client.post("/models/list-model/activate", json={"version": "v2"})
 
@@ -91,3 +105,55 @@ async def test_list_versions(client: AsyncClient) -> None:
     assert len(versions) == 3
     assert versions[0]["version"] == "v2"
     assert versions[0]["is_active"] is True
+
+@pytest.mark.asyncio
+async def test_register_model_with_valid_artifact(client, tmp_path):
+    """Test registering a model with a valid artifact file."""
+    artifact_content = b"fake model artifact"
+    artifact_uri = create_fake_artifact(tmp_path, "model.joblib", artifact_content)
+
+    expected_hash = hashlib.sha256(artifact_content).hexdigest()
+
+    response = await client.post(
+        "/models/register",
+        json={
+            "name": "demo_classifier",
+            "version": "v1",
+            "artifact_uri": artifact_uri,
+            "framework": "sklearn",
+            "task_type": "classification",
+            "tags": ["demo", "baseline"],
+        },
+    )
+
+    assert response.status_code in (200, 201)
+    data = response.json()
+
+    assert data["name"] == "demo_classifier"
+    assert data["version"] == "v1"
+    assert data["artifact_uri"] == artifact_uri
+    assert data["framework"] == "sklearn"
+    assert data["task_type"] == "classification"
+    assert data["tags"] == ["demo", "baseline"]
+    assert data["status"] == "registered"
+    assert data["artifact_hash"] == expected_hash
+
+@pytest.mark.asyncio
+async def test_register_model_rejects_missing_artifact(client, tmp_path):
+    """Test that registering a model with a missing artifact file is rejected."""
+    missing_path = tmp_path / "missing_model.joblib"
+
+    response = await client.post(
+        "/models/register",
+        json={
+            "name": "bad_model",
+            "version": "v1",
+            "artifact_uri": str(missing_path),
+            "framework": "sklearn",
+            "task_type": "classification",
+            "tags": ["demo"],
+        },
+    )
+
+    assert response.status_code == 422
+    assert "Artifact not found" in response.json()["detail"]

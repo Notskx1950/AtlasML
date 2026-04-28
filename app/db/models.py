@@ -30,7 +30,7 @@ class ModelVersion(Base):
     version: Mapped[str] = mapped_column(String(64), nullable=False)
     artifact_uri: Mapped[str] = mapped_column(String(1024), nullable=False)
     runtime_config: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    metadata_: Mapped[dict | None] = mapped_column("metadata_", JSON, nullable=True)
+    metadata_: Mapped[dict | None] = mapped_column("metadata_", JSON, nullable=True) # avoid conflict with SQLAlchemy reserved name 'metadata', it is used to store arbitrary user-defined metadata about the model version
     is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

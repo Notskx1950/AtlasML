@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
+from pathlib import Path
+
 import uuid
 from datetime import datetime
 
@@ -15,7 +18,29 @@ from app.db.models import ModelVersion
 
 router = APIRouter(prefix="/models")
 
+# --- Helper functions ---
+def validate_local_artifact_exists(artifact_uri: str) -> Path:
+    """Validate that a local model artifact exists and is a file."""
+    path = Path(artifact_uri)
 
+    if not path.exists():
+        raise ValueError(f"Artifact not found: {artifact_uri}")
+
+    if not path.is_file():
+        raise ValueError(f"Artifact is not a file: {artifact_uri}")
+
+    return path
+
+
+def calculate_sha256(path: Path) -> str:
+    """Calculate SHA256 hash for a local model artifact."""
+    sha256 = hashlib.sha256()
+
+    with path.open("rb") as file:
+        for chunk in iter(lambda: file.read(1024 * 1024), b""):
+            sha256.update(chunk)
+
+    return sha256.hexdigest()
 # --- Pydantic schemas ---
 
 
@@ -52,7 +77,12 @@ class ModelVersionResponse(BaseModel):
     metadata_: dict | None = None
     is_active: bool
     created_at: datetime
-
+    # Optional fields for better model tracking and management
+    framework: str | None = None
+    task_type: str | None = None
+    status: str
+    tags: list[str] | None = None
+    artifact_hash: str | None = None
 
 # --- Routes ---
 
@@ -62,12 +92,24 @@ async def register_model(
     body: RegisterModelRequest, db: AsyncSession = Depends(get_db)
 ) -> ModelVersion:
     """Register a new model version."""
+    # Validate artifact exists and calculate hash before creating DB record
+    try:
+        artifact_path = validate_local_artifact_exists(body.artifact_uri)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    artifact_hash = calculate_sha256(artifact_path)
+
     mv = ModelVersion(
         name=body.name,
         version=body.version,
         artifact_uri=body.artifact_uri,
         runtime_config=body.runtime_config,
         metadata_=body.metadata_,
+        framework=body.framework,
+        task_type=body.task_type,
+        tags=body.tags,
+        status="registered",
+        artifact_hash=artifact_hash,
     )
     db.add(mv)
     await db.commit()
