@@ -26,7 +26,7 @@ services:
       - postgres
       - redis
     volumes:
-      - ./artifacts:/app/artifacts
+      - .:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
 
   worker:

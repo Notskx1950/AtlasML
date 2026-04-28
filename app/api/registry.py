@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,6 +27,10 @@ class RegisterModelRequest(BaseModel):
     artifact_uri: str
     runtime_config: dict | None = None
     metadata_: dict | None = None
+    # Optional fields for better model tracking and management
+    framework: str | None = Field(default=None, examples=["sklearn"])
+    task_type: str | None = Field(default=None, examples=["classification"])
+    tags: list[str] | None = None
 
 
 class ActivateModelRequest(BaseModel):

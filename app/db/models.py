@@ -36,6 +36,13 @@ class ModelVersion(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
+    # newly added fields for tracking model usage and performance
+    framework: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    task_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="registered")
+    tags: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    artifact_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
+
 
 class InferenceLog(Base):
     """Log entry for a single inference request."""
