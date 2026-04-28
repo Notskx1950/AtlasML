@@ -1,6 +1,6 @@
 # AtlasML
 
-Production-grade ML/LLM inference serving and evaluation platform.
+AtlasML is a lightweight ML/LLM serving and evaluation backend that demonstrates core AI infrastructure patterns: model versioning, validated artifact registration, synchronous and asynchronous inference, evaluation tracking, and observability.
 
 ## Quick Start
 
