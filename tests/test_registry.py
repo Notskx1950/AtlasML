@@ -157,3 +157,27 @@ async def test_register_model_rejects_missing_artifact(client, tmp_path):
 
     assert response.status_code == 422
     assert "Artifact not found" in response.json()["detail"]
+
+@pytest.mark.asyncio
+async def test_register_model_tracks_artifact_hash(client: AsyncClient, tmp_path) -> None:
+    artifact_content = b"fake model artifact"
+    artifact_uri = create_fake_artifact(tmp_path, "model.joblib", artifact_content)
+
+    expected_hash = hashlib.sha256(artifact_content).hexdigest()
+
+    resp = await client.post(
+        "/models/register",
+        json={
+            "name": "hash-model",
+            "version": "v1",
+            "artifact_uri": artifact_uri,
+            "framework": "sklearn",
+            "task_type": "classification",
+            "tags": ["test"],
+        },
+    )
+
+    assert resp.status_code in (200, 201), resp.text
+
+    data = resp.json()
+    assert data["artifact_hash"] == expected_hash
