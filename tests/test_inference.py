@@ -3,27 +3,36 @@
 from __future__ import annotations
 
 from unittest.mock import patch
-
+from pathlib import Path
 import pytest
 from httpx import AsyncClient
 
 from app.models.registry_store import RegistryStore
 from tests.conftest import BrokenAdapter, MockSklearnAdapter, SchemaFailAdapter
 
+# --- helper functions for tests ---
+def create_fake_artifact(
+    tmp_path: Path,
+    filename: str,
+    content: bytes = b"fake model artifact",
+) -> str:
+    path = tmp_path / filename
+    path.write_bytes(content)
+    return str(path)
 
-async def _register_and_activate(client: AsyncClient, name: str, version: str) -> None:
+async def _register_and_activate(client: AsyncClient, name: str, version: str, tmp_path: Path) -> None:
     """Helper to register and activate a model."""
     await client.post(
         "/models/register",
-        json={"name": name, "version": version, "artifact_uri": f"/m/{version}.joblib"},
+        json={"name": name, "version": version, "artifact_uri": create_fake_artifact(tmp_path, f"{version}.joblib")},
     )
     await client.post(f"/models/{name}/activate", json={"version": version})
 
 
 @pytest.mark.asyncio
-async def test_sync_predict(client: AsyncClient, db_session) -> None:
+async def test_sync_predict(client: AsyncClient, db_session, tmp_path: Path) -> None:
     """Sync predict with a mock adapter returns correct shape."""
-    await _register_and_activate(client, "pred-model", "v1")
+    await _register_and_activate(client, "pred-model", "v1", tmp_path)
 
     # Inject mock adapter into the store
     store = RegistryStore()
@@ -55,9 +64,9 @@ async def test_sync_predict(client: AsyncClient, db_session) -> None:
 
 
 @pytest.mark.asyncio
-async def test_sync_predict_broken_model(client: AsyncClient, db_session) -> None:
+async def test_sync_predict_broken_model(client: AsyncClient, db_session, tmp_path: Path) -> None:
     """Predict with a broken adapter returns error and logs it."""
-    await _register_and_activate(client, "broken-model", "v1")
+    await _register_and_activate(client, "broken-model", "v1", tmp_path)
 
     store = RegistryStore()
     store.put("broken-model", "v1", BrokenAdapter())
@@ -82,9 +91,9 @@ async def test_sync_predict_broken_model(client: AsyncClient, db_session) -> Non
 
 
 @pytest.mark.asyncio
-async def test_sync_predict_schema_fail(client: AsyncClient, db_session) -> None:
+async def test_sync_predict_schema_fail(client: AsyncClient, db_session, tmp_path: Path) -> None:
     """Predict with schema validation failure sets schema_valid=False."""
-    await _register_and_activate(client, "schema-model", "v1")
+    await _register_and_activate(client, "schema-model", "v1", tmp_path)
 
     store = RegistryStore()
     store.put("schema-model", "v1", SchemaFailAdapter())
@@ -108,9 +117,9 @@ async def test_sync_predict_schema_fail(client: AsyncClient, db_session) -> None
 
 
 @pytest.mark.asyncio
-async def test_async_predict_enqueues_job(client: AsyncClient, db_session) -> None:
+async def test_async_predict_enqueues_job(client: AsyncClient, db_session, tmp_path: Path) -> None:
     """Async predict returns 202 and creates a job record."""
-    await _register_and_activate(client, "async-model", "v1")
+    await _register_and_activate(client, "async-model", "v1", tmp_path)
 
     # Mock Redis/RQ so we don't need a real connection
     with patch("app.api.inference.Redis") as mock_redis_cls, \
