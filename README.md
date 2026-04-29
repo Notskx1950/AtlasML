@@ -37,6 +37,7 @@ pytest tests/ -v
 |---|---|
 | `POST /models/register` | Register a model version |
 | `POST /models/{name}/activate` | Activate a version |
+| `POST /models/{name}/deployments` records model activation and rollback as deployment events| 
 | `POST /predict` | Synchronous inference |
 | `POST /jobs/predict` | Async inference via RQ |
 | `GET /jobs/{job_id}` | Job status |

@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, Uuid, func
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, Uuid, func, Index
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -135,3 +135,19 @@ class JobRecord(Base):
     finished_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+
+class DeploymentEvent(Base):
+    """Record of a model deployment event, such as activation or deactivation."""
+    __tablename__ = "deployment_events"
+
+    __table_args__ = (
+        Index("ix_deployment_events_model_created_at", "model_name", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid,primary_key=True,default=uuid.uuid4,)
+    model_name: Mapped[str] = mapped_column(String,nullable=False,index=True,)
+    from_version: Mapped[str | None] = mapped_column(String,nullable=True,)
+    to_version: Mapped[str] = mapped_column(String,nullable=False,)
+    action: Mapped[str] = mapped_column(String,nullable=False,)
+    reason: Mapped[str | None] = mapped_column(String,nullable=True,)
+    created_at = mapped_column(DateTime(timezone=True),server_default=func.now(),nullable=False,)
