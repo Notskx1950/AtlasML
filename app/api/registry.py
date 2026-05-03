@@ -9,13 +9,13 @@ import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from typing import Literal
+from typing import Counter, Literal
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db
-from app.db.models import ModelVersion, DeploymentEvent
+from app.db.models import ModelVersion, DeploymentEvent, InferenceLog
 
 router = APIRouter(prefix="/models")
 
@@ -42,6 +42,14 @@ def calculate_sha256(path: Path) -> str:
             sha256.update(chunk)
 
     return sha256.hexdigest()
+
+def _percentile(values: list[float], percentile: float) -> float | None:
+    if not values:
+        return None
+
+    sorted_values = sorted(values)
+    index = int((len(sorted_values) - 1) * percentile)
+    return sorted_values[index]
 # --- Pydantic schemas ---
 
 
@@ -98,6 +106,18 @@ class DeploymentEventResponse(BaseModel):
     action: str
     reason: str | None
     created_at: datetime
+
+class ModelStatsResponse(BaseModel):
+    """Response schema for model performance statistics."""
+    model_name: str
+    active_version: str | None = None
+    total_predictions: int
+    success_count: int
+    error_count: int
+    error_rate: float
+    avg_latency_ms: float | None = None
+    p95_latency_ms: float | None = None
+    top_error_types: dict[str, int]
 
 # --- Routes ---
 
@@ -196,6 +216,49 @@ async def list_deployment_events(
             detail=f"No deployment events found for model {name}",
         )
     return rows
+
+@router.get("/{name}/stats", response_model=ModelStatsResponse)
+async def get_model_stats(
+    name: str,
+    db: AsyncSession = Depends(get_db),
+) -> ModelStatsResponse:
+    active_result = await db.execute(
+        select(ModelVersion).where(
+            ModelVersion.name == name,
+            ModelVersion.is_active == True,  # noqa: E712
+        )
+    )
+    active = active_result.scalar_one_or_none()
+
+    logs_result = await db.execute(
+        select(InferenceLog).where(InferenceLog.model_name == name)
+    )
+    logs = list(logs_result.scalars().all())
+
+    total = len(logs)
+    success_count = sum(1 for log in logs if 200 <= log.status_code < 400)
+    error_count = total - success_count
+    error_rate = error_count / total if total else 0.0
+
+    latencies = [log.latency_ms for log in logs]
+    avg_latency = sum(latencies) / len(latencies) if latencies else None
+    p95_latency = _percentile(latencies, 0.95)
+
+    error_counter = Counter(
+        log.error_type for log in logs if log.error_type is not None
+    )
+
+    return ModelStatsResponse(
+        model_name=name,
+        active_version=active.version if active else None,
+        total_predictions=total,
+        success_count=success_count,
+        error_count=error_count,
+        error_rate=round(error_rate, 4),
+        avg_latency_ms=round(avg_latency, 2) if avg_latency is not None else None,
+        p95_latency_ms=round(p95_latency, 2) if p95_latency is not None else None,
+        top_error_types=dict(error_counter),
+    )
 
 
 @router.get("/{name}", response_model=list[ModelVersionResponse])
