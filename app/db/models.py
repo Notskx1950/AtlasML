@@ -77,7 +77,9 @@ class EvalRun(Base):
     model_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     model_version: Mapped[str] = mapped_column(String(64), nullable=False)
     dataset_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    dataset_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     dataset_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    row_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     git_commit: Mapped[str | None] = mapped_column(String(64), nullable=True)
     config_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     started_at: Mapped[datetime] = mapped_column(
@@ -86,6 +88,7 @@ class EvalRun(Base):
     finished_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(
         String(32), nullable=False, default="running"
     )

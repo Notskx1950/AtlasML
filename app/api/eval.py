@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import hashlib
 import uuid
 from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,12 +31,14 @@ class EvalRunRequest(BaseModel):
     version: str
     dataset_id: str
     dataset_path: str
-
+    git_commit: str | None = None 
+    config_snapshot: dict[str, Any] | None = None    
 
 class EvalRunResponse(BaseModel):
     """Response for eval run creation."""
 
     run_id: str
+    status: str = "running"
 
 
 class EvalMetricResponse(BaseModel):
@@ -57,12 +58,21 @@ class EvalRunDetailResponse(BaseModel):
     id: uuid.UUID
     model_name: str
     model_version: str
+
     dataset_id: str
+    dataset_path: str | None = None
     dataset_hash: str
+    row_count: int | None = None # of rows in the eval dataset, if available
+
+    git_commit: str | None = None 
+    config_snapshot: dict[str, Any] | None = None    
+
     status: str
     started_at: datetime
     finished_at: datetime | None = None
-    metrics: list[EvalMetricResponse] = []
+    duration_ms: int | None = None
+
+    metrics: list[EvalMetricResponse] = Field(default_factory=list)
 
 
 class ComparisonItem(BaseModel):
@@ -107,14 +117,16 @@ async def start_eval_run(
 
     run_id = uuid.uuid4()
     # Generate dataset hash for easier comparison of runs using the same dataset
-    dataset_hash = hashlib.sha256(body.dataset_path.encode()).hexdigest()[:16]
     
     run = EvalRun(
         id=run_id,
         model_name=body.model_name,
         model_version=body.version,
         dataset_id=body.dataset_id,
-        dataset_hash=dataset_hash,
+        dataset_path=body.dataset_path,
+        dataset_hash="pending",
+        git_commit=body.git_commit,
+        config_snapshot=body.config_snapshot,
         status="running",
     )
     db.add(run)
@@ -131,7 +143,7 @@ async def start_eval_run(
         dataset_path=body.dataset_path,
     )
 
-    return EvalRunResponse(run_id=str(run_id))
+    return EvalRunResponse(run_id=str(run_id), status="running")
 
 
 @router.get("/runs/{run_id}", response_model=EvalRunDetailResponse)
