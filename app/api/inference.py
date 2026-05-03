@@ -162,7 +162,7 @@ async def sync_predict(
     )
 
 
-@router.post("/jobs/predict", status_code=status.HTTP_202_ACCEPTED, response_model=JobCreatedResponse)
+@router.post("/jobs/predict", status_code=status.HTTP_202_ACCEPTED, response_model=JobCreatedResponse, dependencies=[Depends(require_api_key)])
 async def async_predict(
     body: PredictRequest, db: AsyncSession = Depends(get_db)
 ) -> JobCreatedResponse:
