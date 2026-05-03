@@ -112,12 +112,22 @@ class ModelStatsResponse(BaseModel):
     """Response schema for model performance statistics."""
     model_name: str
     active_version: str | None = None
+
     total_predictions: int
     success_count: int
     error_count: int
     error_rate: float
+
     avg_latency_ms: float | None = None
     p95_latency_ms: float | None = None
+
+    total_input_tokens: int
+    total_output_tokens: int
+    total_tokens: int
+    avg_input_tokens: float | None = None
+    avg_output_tokens: float | None = None
+    avg_total_tokens: float | None = None
+
     top_error_types: dict[str, int]
 
 # --- Routes ---
@@ -264,6 +274,35 @@ async def get_model_stats(
         log.error_type for log in logs if log.error_type is not None
     )
 
+    input_token_values = [
+        log.input_tokens for log in logs if log.input_tokens is not None
+    ]
+    output_token_values = [
+        log.output_tokens for log in logs if log.output_tokens is not None
+    ]
+
+    total_input_tokens = sum(input_token_values)
+    total_output_tokens = sum(output_token_values)
+    total_tokens = total_input_tokens + total_output_tokens
+
+    token_log_count = len(
+        [
+            log
+            for log in logs
+            if log.input_tokens is not None or log.output_tokens is not None
+        ]
+    )
+
+    avg_input_tokens = (
+        total_input_tokens / token_log_count if token_log_count else None
+    )
+    avg_output_tokens = (
+        total_output_tokens / token_log_count if token_log_count else None
+    )
+    avg_total_tokens = (
+        total_tokens / token_log_count if token_log_count else None
+    )
+
     return ModelStatsResponse(
         model_name=name,
         active_version=active.version if active else None,
@@ -273,6 +312,18 @@ async def get_model_stats(
         error_rate=round(error_rate, 4),
         avg_latency_ms=round(avg_latency, 2) if avg_latency is not None else None,
         p95_latency_ms=round(p95_latency, 2) if p95_latency is not None else None,
+        total_input_tokens=total_input_tokens,
+        total_output_tokens=total_output_tokens,
+        total_tokens=total_tokens,
+        avg_input_tokens=round(avg_input_tokens, 2)
+        if avg_input_tokens is not None
+        else None,
+        avg_output_tokens=round(avg_output_tokens, 2)
+        if avg_output_tokens is not None
+        else None,
+        avg_total_tokens=round(avg_total_tokens, 2)
+        if avg_total_tokens is not None
+        else None,
         top_error_types=dict(error_counter),
     )
 

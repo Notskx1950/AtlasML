@@ -18,6 +18,16 @@ The benchmark calls AtlasML's `/predict` endpoint with an LLM-backed model regis
 
 The LLM adapter uses an OpenAI-compatible chat completions API.
 
+## Token Metrics
+
+AtlasML exposes token usage for LLM-backed predictions:
+
+- `input_tokens`
+- `output_tokens`
+- `total_tokens`
+
+The LLM benchmark reports average token usage per scenario, which helps explain latency differences between short prompts, long prompts, and structured JSON output.
+
 ## Scenarios
 
 | Scenario | Purpose |

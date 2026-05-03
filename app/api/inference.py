@@ -25,7 +25,12 @@ router = APIRouter()
 
 
 # --- Pydantic schemas ---
+class TokenUsage(BaseModel):
+    """Token usage for LLM-backed predictions."""
 
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    total_tokens: int | None = None
 
 class PredictRequest(BaseModel):
     """Request body for /predict."""
@@ -41,6 +46,7 @@ class PredictResponse(BaseModel):
     predictions: list[dict[str, Any]]
     model_version: str
     latency_ms: float
+    token_usage: TokenUsage | None = None
 
 
 class JobCreatedResponse(BaseModel):
@@ -155,10 +161,19 @@ async def sync_predict(
         schema_valid=schema_valid,
     )
 
+    token_usage: TokenUsage | None = None
+    if input_tokens is not None or output_tokens is not None:
+        token_usage = TokenUsage(
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            total_tokens=(input_tokens or 0) + (output_tokens or 0),
+        )
+
     return PredictResponse(
         predictions=predictions,
         model_version=version,
         latency_ms=round(latency_ms, 2),
+        token_usage=token_usage,
     )
 
 
