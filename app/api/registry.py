@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Counter, Literal
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db
@@ -131,7 +132,7 @@ async def register_model(
     try:
         artifact_path = validate_local_artifact_exists(body.artifact_uri)
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     artifact_hash = calculate_sha256(artifact_path)
 
     mv = ModelVersion(
@@ -147,7 +148,15 @@ async def register_model(
         artifact_hash=artifact_hash,
     )
     db.add(mv)
-    await db.commit()
+    
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, 
+            detail=f"Model {body.name}:{body.version} already exists",
+            ) from exc
     await db.refresh(mv)
     return mv
 

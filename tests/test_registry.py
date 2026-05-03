@@ -157,8 +157,22 @@ async def test_register_model_rejects_missing_artifact(client, tmp_path):
         },
     )
 
-    assert response.status_code == 422
+    assert response.status_code == 400
     assert "Artifact not found" in response.json()["detail"]
+
+@pytest.mark.asyncio
+async def test_register_directory_artifact_returns_400(client, tmp_path):
+    resp = await client.post(
+        "/models/register",
+        json={
+            "name": "dir-artifact-model",
+            "version": "v1",
+            "artifact_uri": str(tmp_path),
+        },
+    )
+
+    assert resp.status_code == 400
+    assert "Artifact is not a file" in resp.json()["detail"]
 
 @pytest.mark.asyncio
 async def test_register_model_tracks_artifact_hash(client: AsyncClient, tmp_path) -> None:
@@ -185,63 +199,19 @@ async def test_register_model_tracks_artifact_hash(client: AsyncClient, tmp_path
     assert data["artifact_hash"] == expected_hash
 
 @pytest.mark.asyncio
-async def test_activate_v1_creates_deployment_event(client: AsyncClient, tmp_path) -> None:
-    artifact_uri = create_fake_artifact(tmp_path, "event_model.joblib")
+async def test_register_duplicate_model_version_returns_409(client, tmp_path):
+    artifact_content = b"fake model artifact"
+    artifact_uri = create_fake_artifact(tmp_path, "model.joblib", artifact_content)
 
-    await client.post(
-        "/models/register",
-        json={
-            "name": "event-model",
-            "version": "v1",
-            "artifact_uri": artifact_uri,
-        },
-    )
+    payload = {
+        "name": "dup-model",
+        "version": "v1",
+        "artifact_uri": artifact_uri,
+    }
 
-    response = await client.post(
-        "/models/event-model/activate",
-        json={"version": "v1", "reason": "initial activation"},
-    )
+    first = await client.post("/models/register", json=payload)
+    assert first.status_code == 201
 
-    assert response.status_code == 200
-    assert response.json()["is_active"] is True
-
-    response = await client.get("/models/event-model/deployments")
-    assert response.status_code == 200
-
-    events = response.json()
-    assert len(events) == 1
-
-    event = events[0]
-    assert event["model_name"] == "event-model"
-    assert event["from_version"] is None
-    assert event["to_version"] == "v1"
-    assert event["action"] == "activate"
-    assert event["reason"] == "initial activation"
-    assert event["created_at"] is not None
-
-@pytest.mark.asyncio
-async def test_activate_v2_records_previous_active_version(client: AsyncClient, tmp_path) -> None:
-    for v in ["v1", "v2"]:
-        artifact_uri = create_fake_artifact(tmp_path, f"event_{v}.joblib")
-        await client.post(
-            "/models/register",
-            json={"name": "event-rollback", "version": v, "artifact_uri": artifact_uri},
-        )
-
-    response = await client.post("/models/event-rollback/activate", json={"version": "v1", "reason": "initial activation"})
-    assert response.status_code == 200
-
-    response = await client.post("/models/event-rollback/activate", json={"version": "v2", "reason": "upgrade"})
-    assert response.status_code == 200
-
-    response = await client.get("/models/event-rollback/deployments")
-    assert response.status_code == 200
-
-    events = response.json()
-    assert len(events) == 2
-
-    latest = events[0]
-    assert latest["from_version"] == "v1"
-    assert latest["to_version"] == "v2"
-    assert latest["action"] == "activate"
-    assert latest["reason"] == "upgrade"
+    second = await client.post("/models/register", json=payload)
+    assert second.status_code == 409
+    assert second.json()["detail"] == "Model dup-model:v1 already exists"

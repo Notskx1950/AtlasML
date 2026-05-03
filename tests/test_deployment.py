@@ -14,6 +14,68 @@ def create_fake_artifact(tmp_path, filename: str, content: bytes | None = None) 
 
 # --- Tests ---
 @pytest.mark.asyncio
+async def test_activate_v1_creates_deployment_event(client: AsyncClient, tmp_path) -> None:
+    artifact_uri = create_fake_artifact(tmp_path, "event_model.joblib")
+
+    await client.post(
+        "/models/register",
+        json={
+            "name": "event-model",
+            "version": "v1",
+            "artifact_uri": artifact_uri,
+        },
+    )
+
+    response = await client.post(
+        "/models/event-model/activate",
+        json={"version": "v1", "reason": "initial activation"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["is_active"] is True
+
+    response = await client.get("/models/event-model/deployments")
+    assert response.status_code == 200
+
+    events = response.json()
+    assert len(events) == 1
+
+    event = events[0]
+    assert event["model_name"] == "event-model"
+    assert event["from_version"] is None
+    assert event["to_version"] == "v1"
+    assert event["action"] == "activate"
+    assert event["reason"] == "initial activation"
+    assert event["created_at"] is not None
+
+@pytest.mark.asyncio
+async def test_activate_v2_records_previous_active_version(client: AsyncClient, tmp_path) -> None:
+    for v in ["v1", "v2"]:
+        artifact_uri = create_fake_artifact(tmp_path, f"event_{v}.joblib")
+        await client.post(
+            "/models/register",
+            json={"name": "event-rollback", "version": v, "artifact_uri": artifact_uri},
+        )
+
+    response = await client.post("/models/event-rollback/activate", json={"version": "v1", "reason": "initial activation"})
+    assert response.status_code == 200
+
+    response = await client.post("/models/event-rollback/activate", json={"version": "v2", "reason": "upgrade"})
+    assert response.status_code == 200
+
+    response = await client.get("/models/event-rollback/deployments")
+    assert response.status_code == 200
+
+    events = response.json()
+    assert len(events) == 2
+
+    latest = events[0]
+    assert latest["from_version"] == "v1"
+    assert latest["to_version"] == "v2"
+    assert latest["action"] == "activate"
+    assert latest["reason"] == "upgrade"
+    
+@pytest.mark.asyncio
 async def test_rollback_records_deployment_event(client: AsyncClient, tmp_path) -> None:
     for v in ["v1", "v2"]:
         artifact_uri = create_fake_artifact(tmp_path, f"rb_event_{v}.joblib")
