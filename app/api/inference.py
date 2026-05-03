@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from redis import Redis
 from rq import Queue
 
-from app.api.deps import get_db
+from app.api.deps import get_db, require_api_key
 from app.config import settings
 from app.db.models import InferenceLog, JobRecord, ModelVersion
 from app.models.registry_store import RegistryStore
@@ -89,7 +89,7 @@ async def _resolve_version(
 # --- Routes ---
 
 
-@router.post("/predict", response_model=PredictResponse)
+@router.post("/predict", response_model=PredictResponse, dependencies=[Depends(require_api_key)])
 async def sync_predict(
     body: PredictRequest, db: AsyncSession = Depends(get_db)
 ) -> PredictResponse:

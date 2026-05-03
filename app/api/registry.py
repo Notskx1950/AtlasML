@@ -15,7 +15,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_db
+from app.api.deps import get_db, require_api_key
 from app.db.models import ModelVersion, DeploymentEvent, InferenceLog
 
 router = APIRouter(prefix="/models")
@@ -123,7 +123,7 @@ class ModelStatsResponse(BaseModel):
 # --- Routes ---
 
 
-@router.post("/register", status_code=status.HTTP_201_CREATED, response_model=ModelVersionResponse)
+@router.post("/register", status_code=status.HTTP_201_CREATED, response_model=ModelVersionResponse, dependencies=[Depends(require_api_key)],)
 async def register_model(
     body: RegisterModelRequest, db: AsyncSession = Depends(get_db)
 ) -> ModelVersion:
@@ -161,7 +161,7 @@ async def register_model(
     return mv
 
 
-@router.post("/{name}/activate", response_model=ModelVersionResponse)
+@router.post("/{name}/activate", response_model=ModelVersionResponse, dependencies=[Depends(require_api_key)])
 async def activate_model(
     name: str, body: ActivateModelRequest, db: AsyncSession = Depends(get_db)
 ) -> ModelVersion:

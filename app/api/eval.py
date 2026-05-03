@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from redis import Redis
 from rq import Queue
 
-from app.api.deps import get_db
+from app.api.deps import get_db, require_api_key
 from app.config import settings
 from app.db.models import EvalMetric, EvalRun, ModelVersion
 
@@ -97,7 +97,7 @@ class ComparisonResponse(BaseModel):
 # --- Routes ---
 
 
-@router.post("/run", status_code=status.HTTP_202_ACCEPTED, response_model=EvalRunResponse)
+@router.post("/run", status_code=status.HTTP_202_ACCEPTED, response_model=EvalRunResponse, dependencies=[Depends(require_api_key)])
 async def start_eval_run(
     body: EvalRunRequest, db: AsyncSession = Depends(get_db)
 ) -> EvalRunResponse:

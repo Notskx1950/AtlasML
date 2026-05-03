@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://atlas:atlas@localhost:5432/atlasml"
     DATABASE_SYNC_URL: str = "postgresql+psycopg2://atlas:atlas@localhost:5432/atlasml"
     REDIS_URL: str = "redis://localhost:6379"
+    API_KEY: str | None = None
     LOG_LEVEL: str = "INFO"
     DEFAULT_MODEL_TIMEOUT_MS: int = 5000
     OPENAI_API_BASE: str = "https://api.openai.com/v1"
