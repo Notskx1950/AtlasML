@@ -121,19 +121,26 @@ class ModelStatsResponse(BaseModel):
     top_error_types: dict[str, int]
 
 # --- Routes ---
-
-
 @router.post("/register", status_code=status.HTTP_201_CREATED, response_model=ModelVersionResponse, dependencies=[Depends(require_api_key)],)
 async def register_model(
     body: RegisterModelRequest, db: AsyncSession = Depends(get_db)
 ) -> ModelVersion:
     """Register a new model version."""
     # Validate artifact exists and calculate hash before creating DB record
-    try:
-        artifact_path = validate_local_artifact_exists(body.artifact_uri)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    artifact_hash = calculate_sha256(artifact_path)
+    adapter_type = (body.runtime_config or {}).get("adapter_type", "sklearn")
+
+    artifact_hash: str | None = None
+
+    if adapter_type != "llm":
+        try:
+            artifact_path = validate_local_artifact_exists(body.artifact_uri)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+            ) from exc
+
+        artifact_hash = calculate_sha256(artifact_path)
 
     mv = ModelVersion(
         name=body.name,
