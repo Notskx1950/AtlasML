@@ -16,7 +16,7 @@ from rq import Queue
 
 from app.api.deps import get_db, require_api_key
 from app.config import settings
-from app.db.models import EvalMetric, EvalRun, ModelVersion
+from app.db.models import EvalRun, ModelVersion
 
 router = APIRouter(prefix="/eval")
 

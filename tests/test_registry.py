@@ -7,7 +7,6 @@ import hashlib
 import pytest
 from httpx import AsyncClient
 
-from app.db.models import ModelVersion, DeploymentEvent, InferenceLog
 
 # --- helper functions for tests ---
 def create_fake_artifact(tmp_path, filename: str, content: bytes | None = None) -> str:

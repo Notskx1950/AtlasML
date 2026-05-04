@@ -1,17 +1,18 @@
 """Alembic environment configuration."""
 from __future__ import annotations
+
 import os
 import sys
-
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if BASE_DIR not in sys.path:
-    sys.path.insert(0, BASE_DIR)
 from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from app.db.models import Base
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+
+from app.db.models import Base  # noqa: E402
 
 config = context.config
 if config.config_file_name is not None:

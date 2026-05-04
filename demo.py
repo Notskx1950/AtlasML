@@ -5,12 +5,9 @@ from __future__ import annotations
 
 import json
 import os
-import sys
-import tempfile
 import time
 
 import httpx
-import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.datasets import make_classification
 import joblib
@@ -32,8 +29,6 @@ def main() -> None:
     client = httpx.Client(base_url=BASE_URL, timeout=30)
 
     # --- Prepare artifacts ---
-    tmpdir = tempfile.mkdtemp(prefix="atlasml_demo_")
-
     PROJECT_ROOT = Path(__file__).resolve().parent
     ARTIFACTS_DIR = PROJECT_ROOT / "artifacts"
     ARTIFACTS_DIR.mkdir(exist_ok=True)

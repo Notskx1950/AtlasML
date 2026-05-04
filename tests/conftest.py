@@ -6,14 +6,11 @@ import asyncio
 import json
 import os
 import tempfile
-import uuid
 from typing import AsyncGenerator, Generator
-from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.db.models import Base

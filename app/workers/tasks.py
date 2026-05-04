@@ -18,7 +18,7 @@ def run_predict(
     import asyncio
 
     from app.db.session import get_sync_session_factory
-    from app.models.registry_store import RegistryStore, _build_adapter
+    from app.models.registry_store import _build_adapter
     from app.db.models import JobRecord, ModelVersion
 
     db = get_sync_session_factory()()

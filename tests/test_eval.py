@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
-import tempfile
 import uuid
 from datetime import datetime, timezone
 from unittest.mock import patch
@@ -51,13 +49,11 @@ async def test_eval_run_on_fixture_dataset(
     await db_session.commit()
 
     # Run the eval synchronously using the runner
-    from app.eval.runner import EvalRunner
 
     adapter = MockSklearnAdapter()
 
     # We need a sync session for the runner — simulate by using async
     # Instead, call the logic directly and write metrics
-    import asyncio
 
     dataset_rows = []
     with open(sample_dataset) as f:

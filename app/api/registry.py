@@ -195,7 +195,7 @@ async def activate_model(
         )
     # Find current active version (if any) to deactivate
     current_result = await db.execute(
-        select(ModelVersion).where(ModelVersion.name == name, ModelVersion.is_active == True)
+        select(ModelVersion).where(ModelVersion.name == name, ModelVersion.is_active)
     )
     current_active = current_result.scalar_one_or_none()
 

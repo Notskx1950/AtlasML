@@ -8,7 +8,6 @@ import statistics
 import time
 from dataclasses import dataclass
 from typing import Any
-from unittest import result
 
 import httpx
 

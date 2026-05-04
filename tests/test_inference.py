@@ -122,8 +122,9 @@ async def test_async_predict_enqueues_job(client: AsyncClient, db_session, tmp_p
     await _register_and_activate(client, "async-model", "v1", tmp_path)
 
     # Mock Redis/RQ so we don't need a real connection
-    with patch("app.api.inference.Redis") as mock_redis_cls, \
-         patch("app.api.inference.Queue") as mock_queue_cls:
+    with patch("app.api.inference.Redis"), patch(
+        "app.api.inference.Queue"
+    ) as mock_queue_cls:
         mock_queue = mock_queue_cls.return_value
         mock_queue.enqueue.return_value = None
 

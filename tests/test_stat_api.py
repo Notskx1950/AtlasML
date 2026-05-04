@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import hashlib
 
 import pytest
-from httpx import AsyncClient
 
-from app.db.models import ModelVersion, DeploymentEvent, InferenceLog
+from app.db.models import ModelVersion, InferenceLog
 
 @pytest.mark.asyncio
 async def test_model_stats_aggregates_inference_logs(client, db_session):
