@@ -12,10 +12,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db
-from app.db.models import AgentRun, AgentStep, ToolInvocation
+from app.db.models import AgentRun, AgentStep, ToolInvocation, ModelVersion
+from app.agents.runner import AgentRunner
 
 router = APIRouter(prefix="/agents")
 
+# --- Schemas ---
+class AgentRunRequest(BaseModel):
+    task: str
+    model_name: str
+    version: str | None = None
 
 class AgentStepResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -70,7 +76,7 @@ class AgentTraceResponse(BaseModel):
     steps: list[AgentStepResponse] = Field(default_factory=list)
     tool_invocations: list[ToolInvocationResponse] = Field(default_factory=list)
 
-
+# --- Routes ---
 @router.get("/runs/{run_id}", response_model=AgentRunResponse)
 async def get_agent_run(
     run_id: str,
@@ -115,4 +121,34 @@ async def get_agent_trace(
         run=run,
         steps=steps,
         tool_invocations=tool_invocations,
+    )
+
+@router.post("/run", response_model=AgentRunResponse)
+async def run_agent(
+    body: AgentRunRequest,
+    db: AsyncSession = Depends(get_db),
+) -> AgentRun:
+    version = body.version
+
+    if version is None:
+        result = await db.execute(
+            select(ModelVersion).where(
+                ModelVersion.name == body.model_name,
+                ModelVersion.is_active == True,  # noqa: E712
+            )
+        )
+        active = result.scalar_one_or_none()
+        if active is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No active version for model {body.model_name}",
+            )
+        version = active.version
+
+    runner = AgentRunner()
+    return await runner.run(
+        task=body.task,
+        model_name=body.model_name,
+        model_version=version,
+        db=db,
     )
