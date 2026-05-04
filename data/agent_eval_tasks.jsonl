@@ -1,0 +1,4 @@
+{"task": "Calculate 18 * 23.", "expected_tool": "calculator", "expected_answer_contains": "414"}
+{"task": "Calculate 7 + 13.", "expected_tool": "calculator", "expected_answer_contains": "20"}
+{"task": "Echo this JSON: {\"status\":\"ok\"}.", "expected_tool": "echo_json", "expected_answer_contains": "ok"}
+{"task": "Look up stats for model llm-benchmark.", "expected_tool": "model_stats_lookup", "expected_answer_contains": "llm-benchmark"}
