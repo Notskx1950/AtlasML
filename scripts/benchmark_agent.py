@@ -19,6 +19,12 @@ class AgentBenchmarkResult:
     avg_steps: float | None
     avg_tokens: float | None
 
+SCENARIOS = {
+    "calculator_agent_run": "Calculate 18 * 23 and explain the result.",
+    "echo_json_agent_run": 'Echo this JSON: {"status":"ok"}.',
+    "model_stats_lookup_agent_run": "Look up stats for model llm-benchmark.",
+}
+
 
 def percentile(values: list[float], pct: float) -> float:
     sorted_values = sorted(values)
@@ -47,6 +53,7 @@ def benchmark_agent_run(
     client: httpx.Client,
     model_name: str,
     task: str,
+    scenario_name: str,
     runs: int,
 ) -> AgentBenchmarkResult:
     latencies: list[float] = []
@@ -78,7 +85,7 @@ def benchmark_agent_run(
             step_counts.append(len(trace.get("steps", [])))
 
     return AgentBenchmarkResult(
-        scenario="calculator_agent_run",
+        scenario=scenario_name,
         runs=runs,
         success_rate=successes / runs if runs else 0.0,
         avg_ms=statistics.mean(latencies),
@@ -107,14 +114,18 @@ def main() -> None:
         headers=headers,
     )
 
-    result = benchmark_agent_run(
-        client=client,
-        model_name=args.model_name,
-        task="Calculate 18 * 23 and explain the result.",
-        runs=args.runs,
-    )
+    results = [
+        benchmark_agent_run(
+            client=client,
+            model_name=args.model_name,
+            task=task,
+            scenario_name=name,
+            runs=args.runs,
+        )
+        for name, task in SCENARIOS.items()
+    ]
 
-    print_markdown([result])
+    print_markdown(results)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,19 @@
-{"task": "Calculate 18 * 23.", "expected_tool": "calculator", "expected_answer_contains": "414"}
-{"task": "Calculate 7 + 13.", "expected_tool": "calculator", "expected_answer_contains": "20"}
-{"task": "Echo this JSON: {\"status\":\"ok\"}.", "expected_tool": "echo_json", "expected_answer_contains": "ok"}
-{"task": "Look up stats for model llm-benchmark.", "expected_tool": "model_stats_lookup", "expected_answer_contains": "llm-benchmark"}
+{"category": "calculator_basic", "difficulty": "easy", "task": "Calculate 18 * 23.", "expected_tool": "calculator", "expected_answer_contains": "414"}
+{"category": "calculator_basic", "difficulty": "easy", "task": "Calculate 7 + 13.", "expected_tool": "calculator", "expected_answer_contains": "20"}
+{"category": "calculator_basic", "difficulty": "easy", "task": "Calculate 100 / 4.", "expected_tool": "calculator", "expected_answer_contains": "25"}
+{"category": "calculator_basic", "difficulty": "medium", "task": "Calculate (12 + 8) * 3.", "expected_tool": "calculator", "expected_answer_contains": "60"}
+{"category": "calculator_basic", "difficulty": "medium", "task": "Calculate 2.5 * 8.", "expected_tool": "calculator", "expected_answer_contains": "20"}
+
+{"category": "echo_json", "difficulty": "easy", "task": "Echo this JSON: {\"status\":\"ok\"}.", "expected_tool": "echo_json", "expected_answer_contains": "ok"}
+{"category": "echo_json", "difficulty": "easy", "task": "Echo this JSON payload: {\"model\":\"atlas\", \"version\":\"v1\"}.", "expected_tool": "echo_json", "expected_answer_contains": "atlas"}
+{"category": "echo_json", "difficulty": "medium", "task": "Echo this JSON payload: {\"task\":\"benchmark\", \"success\":true}.", "expected_tool": "echo_json", "expected_answer_contains": "benchmark"}
+
+{"category": "model_stats_lookup", "difficulty": "easy", "task": "Look up stats for model llm-benchmark.", "expected_tool": "model_stats_lookup", "expected_answer_contains": "llm-benchmark"}
+{"category": "model_stats_lookup", "difficulty": "easy", "task": "Get model statistics for llm-benchmark.", "expected_tool": "model_stats_lookup", "expected_answer_contains": "llm-benchmark"}
+
+{"category": "tool_selection", "difficulty": "easy", "task": "What is 9 * 9?", "expected_tool": "calculator", "expected_answer_contains": "81"}
+{"category": "tool_selection", "difficulty": "easy", "task": "Return the following JSON unchanged: {\"health\":\"ok\"}.", "expected_tool": "echo_json", "expected_answer_contains": "ok"}
+{"category": "tool_selection", "difficulty": "medium", "task": "Check the stats for model llm-benchmark and mention the model name.", "expected_tool": "model_stats_lookup", "expected_answer_contains": "llm-benchmark"}
+
+{"category": "failure_cases", "difficulty": "hard", "task": "Calculate 18 * unknown_variable.", "expected_tool": "calculator", "expected_answer_contains": null}
+{"category": "failure_cases", "difficulty": "hard", "task": "Use a tool that does not exist to solve this problem.", "expected_tool": null, "expected_answer_contains": null}

@@ -12,6 +12,8 @@ import httpx
 @dataclass
 class AgentEvalResult:
     task: str
+    category: str
+    difficulty: str
     task_success: bool
     tool_correct: bool
     step_count: int
@@ -72,6 +74,38 @@ def print_summary(results: list[AgentEvalResult]) -> None:
         f"| {avg_tokens:.2f} |"
     )
 
+def print_category_summary(results: list[AgentEvalResult]) -> None:
+    categories = sorted({r.category for r in results})
+
+    print("\n## By Category")
+    print("| Category | Runs | Task Success | Tool Accuracy | Avg Steps | Avg Latency ms | Avg Tokens |")
+    print("|---|---:|---:|---:|---:|---:|---:|")
+
+    for category in categories:
+        subset = [r for r in results if r.category == category]
+        total = len(subset)
+
+        task_success = sum(r.task_success for r in subset) / total if total else 0
+        tool_accuracy = sum(r.tool_correct for r in subset) / total if total else 0
+
+        steps = [r.step_count for r in subset]
+        durations = [r.duration_ms for r in subset if r.duration_ms is not None]
+        tokens = [r.total_tokens for r in subset if r.total_tokens is not None]
+
+        avg_steps = sum(steps) / len(steps) if steps else 0
+        avg_duration = sum(durations) / len(durations) if durations else 0
+        avg_tokens = sum(tokens) / len(tokens) if tokens else 0
+
+        print(
+            f"| {category} "
+            f"| {total} "
+            f"| {task_success:.2f} "
+            f"| {tool_accuracy:.2f} "
+            f"| {avg_steps:.2f} "
+            f"| {avg_duration:.2f} "
+            f"| {avg_tokens:.2f} |"
+        )
+
 
 def main() -> None:
     parser = argparse.ArgumentParser()
@@ -119,6 +153,8 @@ def main() -> None:
         results.append(
             AgentEvalResult(
                 task=item["task"],
+                category=item.get("category", "uncategorized"),
+                difficulty=item.get("difficulty", "unknown"),
                 task_success=task_success,
                 tool_correct=tool_correct,
                 step_count=len(trace.get("steps", [])),
@@ -128,6 +164,7 @@ def main() -> None:
         )
 
     print_summary(results)
+    print_category_summary(results)
 
 
 if __name__ == "__main__":
