@@ -154,3 +154,124 @@ class DeploymentEvent(Base):
     action: Mapped[str] = mapped_column(String,nullable=False,)
     reason: Mapped[str | None] = mapped_column(String,nullable=True,)
     created_at = mapped_column(DateTime(timezone=True),server_default=func.now(),nullable=False,)
+
+class AgentRun(Base):
+    """A full agent task execution."""
+
+    __tablename__ = "agent_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, primary_key=True, default=uuid.uuid4
+    )
+
+    task: Mapped[str] = mapped_column(Text, nullable=False)
+
+    model_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    model_version: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="running"
+    )
+
+    final_output: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    error_type: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    total_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    steps: Mapped[list["AgentStep"]] = relationship(
+        "AgentStep",
+        back_populates="run",
+        cascade="all, delete-orphan",
+    )
+
+    tool_invocations: Mapped[list["ToolInvocation"]] = relationship(
+        "ToolInvocation",
+        back_populates="run",
+        cascade="all, delete-orphan",
+    )
+
+class AgentStep(Base):
+    """One step in an agent run."""
+
+    __tablename__ = "agent_steps"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, primary_key=True, default=uuid.uuid4
+    )
+
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("agent_runs.id"), nullable=False, index=True
+    )
+
+    step_index: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    step_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    # examples: llm_call, tool_call, observation, final, error
+
+    input: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    output: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+    status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="completed"
+    )
+
+    latency_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    run: Mapped[AgentRun] = relationship(
+        "AgentRun",
+        back_populates="steps",
+    )
+
+class ToolInvocation(Base):
+    """A structured tool call made during an agent run."""
+
+    __tablename__ = "tool_invocations"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, primary_key=True, default=uuid.uuid4
+    )
+
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("agent_runs.id"), nullable=False, index=True
+    )
+
+    step_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("agent_steps.id"), nullable=True, index=True
+    )
+
+    tool_name: Mapped[str] = mapped_column(String(128), nullable=False)
+
+    tool_input: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    tool_output: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    # completed, failed
+
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    latency_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    run: Mapped[AgentRun] = relationship(
+        "AgentRun",
+        back_populates="tool_invocations",
+    )

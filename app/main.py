@@ -51,11 +51,13 @@ def create_app() -> FastAPI:
     from app.api.inference import router as inference_router
     from app.api.eval import router as eval_router
     from app.api.health import router as health_router
+    from app.api.agents import router as agents_router
 
     app.include_router(registry_router, tags=["registry"])
     app.include_router(inference_router, tags=["inference"])
     app.include_router(eval_router, tags=["eval"])
     app.include_router(health_router, tags=["health"])
+    app.include_router(agents_router, tags=["agents"])
     
     return app
 
