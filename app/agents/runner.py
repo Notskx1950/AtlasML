@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.schemas import ToolCall
+from app.agents.schemas import ToolCall, normalize_tool_call
 from app.agents.tools import execute_tool
 from app.db.models import AgentRun, AgentStep, ToolInvocation
 from app.models.registry_store import RegistryStore
@@ -16,6 +16,32 @@ from app.models.registry_store import RegistryStore
 
 def _duration_ms(started_at: datetime, finished_at: datetime) -> int:
     return int((finished_at - started_at).total_seconds() * 1000)
+
+
+def _build_tool_prompt(task: str) -> str:
+    return (
+        "You are a tool-calling agent.\n\n"
+        "Return ONLY valid JSON.\n"
+        "Do not include markdown.\n"
+        "Do not include explanation.\n\n"
+        "The JSON must match:\n\n"
+        "{\n"
+        '  "tool_name": "calculator" | "echo_json" | "model_stats_lookup",\n'
+        '  "arguments": {...}\n'
+        "}\n\n"
+        "Tool schemas:\n"
+        '- calculator: {"expression": "string containing only arithmetic expression"}\n'
+        '- echo_json: {"payload": object}\n'
+        '- model_stats_lookup: {"model_name": "string"}\n\n'
+        "Examples:\n"
+        "Task: Calculate 18 * 23.\n"
+        'Output: {"tool_name":"calculator","arguments":{"expression":"18*23"}}\n\n'
+        'Task: Echo this JSON: {"status":"ok"}.\n'
+        'Output: {"tool_name":"echo_json","arguments":{"payload":{"status":"ok"}}}\n\n'
+        "Task: Look up stats for model llm-benchmark.\n"
+        'Output: {"tool_name":"model_stats_lookup","arguments":{"model_name":"llm-benchmark"}}\n\n'
+        f"Task: {task}"
+    )
 
 
 class AgentRunner:
@@ -49,13 +75,7 @@ class AgentRunner:
             adapter = await store.load(model_name, model_version, db)
 
             # Step 0: ask LLM to produce tool call JSON
-            tool_prompt = (
-                "You are a tool-calling agent. "
-                "Return only valid JSON with keys tool_name and arguments. "
-                "Available tools: calculator(expression), echo_json(payload), "
-                "model_stats_lookup(model_name). "
-                f"Task: {task}"
-            )
+            tool_prompt = _build_tool_prompt(task)
 
             step_start = time.perf_counter()
             tool_response = await adapter.predict([{"prompt": tool_prompt}])
@@ -66,7 +86,7 @@ class AgentRunner:
 
             raw_tool_response = tool_response[0].get("response", "")
             tool_payload = json.loads(raw_tool_response)
-            tool_call = ToolCall.model_validate(tool_payload)
+            tool_call = normalize_tool_call(ToolCall.model_validate(tool_payload))
 
             step = AgentStep(
                 run_id=run.id,
