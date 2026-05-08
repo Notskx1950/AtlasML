@@ -85,6 +85,38 @@ The average step count is `1.67`. A fully successful single-tool agent run usual
 
 Since the average step count is much lower than `3`, many failures likely happen early during tool-call generation, parsing, or validation before the workflow reaches tool execution and final response generation.
 
+## Updated Results After Tool-Call Prompt Improvements
+
+| Task Set | Runs | Normal Task Success | Tool Accuracy | Controlled Failure Rate | Avg Steps | Avg Latency ms | Avg Tokens |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| agent_eval_tasks | 15 | 1.00 | 1.00 | 0.50 | 3.00 | 1608.40 | 284.07 |
+
+## By Category
+
+| Category | Runs | Normal Task Success | Tool Accuracy | Controlled Failure Rate | Avg Steps | Avg Latency ms | Avg Tokens |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| calculator_basic | 5 | 1.00 | 1.00 | 0.00 | 3.00 | 1593.40 | 265.80 |
+| echo_json | 3 | 1.00 | 1.00 | 0.00 | 3.00 | 1490.00 | 280.00 |
+| failure_cases | 2 | 0.00 | 1.00 | 0.50 | 3.00 | 1383.00 | 272.00 |
+| model_stats_lookup | 2 | 1.00 | 1.00 | 0.00 | 3.00 | 1964.00 | 344.50 |
+| tool_selection | 3 | 1.00 | 1.00 | 0.00 | 3.00 | 1665.00 | 286.33 |
+
+## Interpretation
+
+After strengthening the tool-call prompt and separating normal task success from controlled failure scoring, the agent eval results improved substantially.
+
+Normal task success reached 100%, and tool accuracy reached 100% across calculator, JSON echo, model stats lookup, and tool-selection tasks. The average step count also increased to 3.00, which matches the intended single-tool agent workflow:
+
+1. LLM generates a structured tool call
+2. AtlasML executes the selected tool
+3. LLM generates the final answer from the tool result
+
+The model stats lookup category improved from complete failure to full success, showing that the previous bottleneck was structured tool-call reliability rather than the underlying tool execution system.
+
+The failure case category is reported separately through controlled failure rate. These tasks are not intended to be scored like normal tasks. Instead, they test whether AtlasML can handle invalid or difficult inputs in a controlled way while preserving traceability.
+
+Overall, these results show that AtlasML now supports an eval-driven agent improvement workflow: trace failures, strengthen tool-call constraints, rerun evals, and quantify reliability improvements.
+
 ## Category Analysis
 
 ### `calculator_basic`

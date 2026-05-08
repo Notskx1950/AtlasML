@@ -58,6 +58,28 @@ The `echo_json_agent_run` scenario also achieved a 100% success rate with 3 aver
 
 The `model_stats_lookup_agent_run` scenario failed in this run, with an average of only 1 step. This suggests that failures happen early, likely during structured tool-call generation or parsing, before tool execution and final answer generation. This is useful because it shows that the trace system can reveal where the agent workflow breaks.
 
+## Updated Results After Tool-Call Prompt Improvements
+
+| Scenario | Runs | Success Rate | Avg ms | P50 ms | P95 ms | Avg Steps | Avg Tokens |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| calculator_agent_run | 5 | 1.00 | 4145.04 | 3747.22 | 4115.37 | 3 | 383 |
+| echo_json_agent_run | 5 | 1.00 | 1689.44 | 1453.07 | 1711.21 | 3 | 260.6 |
+| model_stats_lookup_agent_run | 5 | 1.00 | 2009.69 | 1984.71 | 2150.29 | 3 | 349 |
+
+## Interpretation
+
+After strengthening the tool-call prompt, all benchmark scenarios reached a 100% success rate. The `model_stats_lookup_agent_run` scenario improved from complete failure to full success, showing that the previous bottleneck was tool-call generation and schema reliability rather than the underlying Python tool execution.
+
+All scenarios now average 3 steps, matching the expected agent workflow:
+
+1. LLM generates a structured tool call
+2. AtlasML executes the selected tool
+3. LLM generates a final answer from the tool result
+
+The improvement comes with higher token usage, especially for `calculator_agent_run` and `model_stats_lookup_agent_run`. This reflects a common agent-infrastructure tradeoff: stricter prompts and examples improve tool-call reliability, but increase prompt length, token usage, and latency.
+
+Overall, the updated benchmark shows that AtlasML can now run stable traceable agent workflows across arithmetic, JSON, and platform-observability tools.
+
 ## Key Takeaways
 
 * AtlasML can execute and trace successful multi-step agent workflows.
